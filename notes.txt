@@ -1,0 +1,40 @@
+LE RIGGING:
+
+Le rigging (ou squelettage / gréement) est une technique essentielle en infographie et en animation 3D ou 2D.
+Elle consiste à créer un squelette virtuel composé d'os (bones) et de points de contrôle, puis à lier cette 
+structure à l'enveloppe de surface (le maillage ou mesh) d'un modèle
+
+-----> https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
+
+
+Idée de struct pour lhumain ( a definir avec Alex) : 
+
+class gLobj{
+    verticeBuffer
+    verticeDATA
+    verticeColor
+    .....
+}
+
+class human{
+    globj head;
+    globj torso;
+
+    globj upper_arm_left;
+    globj forearm_left;
+    globj upper_arm_right;
+    globj forearm_right;
+
+    globj thigh_left;
+    globj lower_part_left;
+    globj thigh_right;
+    globj lower_part_right;
+    .....
+}
+
+class   keyboard{
+    void    jump;
+    void    walk;
+    void    stay_put;
+    .....
+}
