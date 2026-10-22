@@ -38,3 +38,5 @@ class   keyboard{
     void    stay_put;
     .....
 }
+
+Peut-etre une struct ou class pour stocker les infos de l'ecran (width , height, GlfWindow ....)

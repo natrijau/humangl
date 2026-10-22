@@ -1,0 +1,5 @@
+obj/
+HumanGL
+*.o
+*.d
+.DS_Store

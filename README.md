@@ -1,47 +1,108 @@
 # HumanGL
 
-## Objet
+Scène OpenGL 4.0+ avec un personnage articulé, une pile de matrices maison et
+trois animations : immobilité, marche et saut.
 
-HumanGL est une scène 3D réalisée avec **OpenGL 4.0 ou version ultérieure**.
-Le projet doit présenter un personnage articulé, animé par une hiérarchie de transformations implémentée par le projet lui-même.
+## Prérequis
 
-## Exigences obligatoires
+- Un compilateur C++17 (`c++`)
+- GLFW 3
+- Les headers OpenGL / X11
 
-- Utiliser OpenGL **4.0+**.
-- Implémenter les matrices et transformations nécessaires au projet, sans dépendre d’une pile de matrices OpenGL obsolète : translations, rotations, mises à l’échelle et composition hiérarchique.
-- Fournir une pile de matrices propre au projet (`push`/`pop`, ou équivalent) afin de préserver et restaurer le repère de chaque partie.
-- Construire un personnage articulé comprenant au minimum :
-  - une tête et un torse ;
-  - deux bras, chacun composé séparément d’un bras supérieur et d’un avant-bras ;
-  - deux jambes, chacune composée séparément d’une cuisse et d’une partie inférieure.
-- Permettre les poses ou animations suivantes : marche, saut et immobilité.
-- Respecter la hiérarchie : une articulation enfant doit suivre les transformations de ses parents, sans modifier les autres branches du personnage.
-- Repositionner automatiquement les articulations et les enfants lorsqu’une longueur ou une taille de membre change. Les positions ne doivent donc pas être codées à nouveau manuellement pour chaque dimension.
-- Dessiner chaque partie du personnage par **exactement un appel** à une fonction qui dessine une forme de taille `1 × 1 × 1` autour de l’origine de la matrice courante. La taille et l’orientation d’une partie doivent être obtenues par les transformations de la matrice.
-- Garder distinctes les parties supérieures et inférieures des membres : un bras ou une jambe ne doit pas être représenté par un seul bloc lorsque le cahier des charges demande deux segments.
-- Fournir un système de compilation reproductible avec un `Makefile`.
+Sur Debian/Ubuntu :
+
+```sh
+sudo apt install build-essential libglfw3-dev libgl1-mesa-dev xorg-dev
+```
+
+GLAD est fourni dans `external/glad`. Aucune autre dépendance n'est nécessaire :
+les matrices et les transformations sont implémentées dans le projet.
 
 ## Compilation et exécution
-
-Depuis la racine du projet :
 
 ```sh
 make
 ./HumanGL
 ```
 
-Le `Makefile` doit au minimum proposer une cible de compilation par défaut et une cible de nettoyage (`clean`). Il doit déclarer les dépendances nécessaires et transmettre les options appropriées pour OpenGL 4.0+.
+Cibles disponibles : `make`, `make run`, `make clean`, `make fclean`, `make re`.
 
-## Démonstration attendue pour l’évaluation
+## Commandes
 
-La démonstration doit permettre de vérifier visuellement et rapidement :
+| Touche | Action |
+|---|---|
+| `W` | marche |
+| `S` | immobilité |
+| `Espace` | saut |
+| `1` / `2` | raccourcir / allonger les bras |
+| `3` / `4` | raccourcir / allonger les jambes |
+| `5` / `6` | réduire / augmenter la hauteur du torse |
+| `Échap` | quitter |
 
-1. le personnage complet et toutes ses parties articulées ;
-2. la marche, avec un mouvement cohérent des bras et des jambes ;
-3. le saut, avec une phase identifiable de montée et de descente ;
-4. l’immobilité, sans animation résiduelle ;
-5. la continuité de la hiérarchie lors des rotations et translations ;
-6. le repositionnement correct des articulations après modification de la taille d’un membre ;
-7. le fonctionnement de la compilation via `make`.
+Les changements de taille sont appliqués à l'exécution : les articulations et
+les parties enfants se repositionnent automatiquement.
 
-Le code doit rendre clairement identifiable la pile de matrices, la construction hiérarchique et l’unique appel de dessin utilisé pour chaque partie.
+## Architecture
+
+```text
+include/
+├── graphics/
+│   ├── cube.hpp      # cube 1x1x1, un seul appel de dessin
+│   ├── opengl.hpp    # GLAD + GLFW
+│   ├── shader.hpp
+│   └── window.hpp
+├── human/
+│   └── human.hpp     # hiérarchie du personnage
+└── math/
+    ├── mat4.hpp      # matrices 4x4 maison (colonne-major)
+    ├── matrix_stack.hpp
+    └── vec3.hpp
+src/                  # implémentations correspondantes
+```
+
+### Pile de matrices
+
+`MatrixStack` est la pile du projet (`include/math/matrix_stack.hpp`) :
+
+- `push()` duplique la matrice courante ;
+- `translate`, `rotateX/Y/Z`, `scale` composent la transformation locale ;
+- `pop()` restaure le repère du parent.
+
+Aucune fonction OpenGL obsolète (`glPushMatrix`, `glRotate`, ...) n'est utilisée.
+
+### Hiérarchie
+
+Le personnage est un arbre de 10 parties :
+
+```text
+torse
+├── tête
+├── bras gauche → avant-bras gauche
+├── bras droit  → avant-bras droit
+├── cuisse gauche → jambe gauche
+└── cuisse droite → jambe droite
+```
+
+`Human::rebuild()` calcule chaque pivot à partir des dimensions du parent.
+Modifier la longueur d'un bras déplace donc automatiquement l'avant-bras ; modifier
+la longueur des jambes remonte le torse et la tête pour garder les pieds au sol.
+
+`Human::drawPart()` parcourt l'arbre : le repère de l'articulation est empilé,
+la partie est dessinée, puis les enfants sont parcourus avant de dépiler.
+
+### Dessin
+
+`Cube::draw()` dessine un cube de taille `1 × 1 × 1` centré sur l'origine de la
+matrice courante. Chaque partie appelle cette fonction **exactement une fois** ;
+sa taille et son orientation viennent uniquement des transformations de la pile.
+
+## Vérifications
+
+- `make re` compile sans warning avec `-Wall -Wextra -Werror`.
+- Le contexte demandé est OpenGL 4.0 core (GLAD est généré pour 4.6 et sert de
+  loader ; le programme vérifie `GLAD_GL_VERSION_4_0`).
+- `S` fige complètement la pose (aucune animation résiduelle).
+- `W` fait marcher le personnage, `Espace` déclenche un saut avec montée et
+  descente identifiables.
+- Les touches `1` à `6` démontrent le repositionnement automatique des
+  articulations.
